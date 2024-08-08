@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Application</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var socket = io();
+            socket.on('message', function(data) {
+                var messageList = document.getElementById('messages');
+                var messageItem = document.createElement('li');
+                messageItem.innerHTML = `<strong>${data.username}:</strong> ${data.message} <br>${data.image_url ? '<img src="' + data.image_url + '" style="max-width: 200px;"/>' : ''} <br><button onclick="likeMessage(${data.id})">Like (${data.likes})</button>`;
+                messageList.appendChild(messageItem);
+            });
+            socket.on('like', function(data) {
+                var buttons = document.querySelectorAll('button');
+                buttons.forEach(button => {
+                    if (button.getAttribute('onclick').includes(data.id)) {
+                        button.textContent = 'Like (' + data.likes + ')';
+                    }
+                });
+            });
+            document.getElementById('sendMessage').addEventListener('click', function() {
+                var username = document.getElementById('username').value;
+                var message = document.getElementById('message').value;
+                var image = document.getElementById('image').files[0];
+                var formData = new FormData();
+                formData.append('username', username);
+                formData.append('message', message);
+                formData.append('image', image);
+                fetch('/send', {
+                    method: 'POST',
+                    body: formData
+                }).then(response => response.redirected && window.location.href = response.url);
+            });
+        });
+
+        function likeMessage(id) {
+            fetch(`/like/${id}`).then(response => response.redirected && window.location.href = response.url);
+        }
+    </script>
+</head>
+<body>
+    <h1>Chat Application</h1>
+    <ul id="messages">
+        {% for msg in messages %}
+            <li>
+                <strong>{{ msg.username }}:</strong> {{ msg.message }} <br>
+                {% if msg.image_url %}
+                    <img src="{{ msg.image_url }}" style="max-width: 200px;"/>
+                {% endif %}
+                <br>
+                <button onclick="likeMessage({{ msg.id }})">Like ({{ msg.likes }})</button>
+            </li>
+        {% endfor %}
+    </ul>
+    <form action="/send" method="post" enctype="multipart/form-data">
+        <input type="text" id="username" name="username" placeholder="Username" required>
+        <input type="text" id="message" name="message" placeholder="Message" required>
+        <input type="file" id="image" name="image">
+        <button type="button" id="sendMessage">Send</button>
+    </form>
+</body>
+</html>
